@@ -1,0 +1,29 @@
+{
+  "name": "countryballs-fallout-launcher",
+  "version": "1.0.0",
+  "description": "Countryballs: Fallout Suspects",
+  "author": "Countryballs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --publish never"
+  },
+  "build": {
+    "appId": "com.countryballs.falloutsuspects",
+    "productName": "Countryballs Fallout",
+    "files": ["main.js", "loading.html", "package.json"],
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "artifactName": "CountryballsFallout-Setup.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  }
+}
