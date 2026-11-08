@@ -2,7 +2,7 @@ const { app, BrowserWindow, shell } = require('electron');
 const path = require('path');
 
 // >>> SADECE BU SATIRI DEGISTIR: Render'daki oyun adresin <<<
-const GAME_URL = 'https://countryballs-fallout-a96q.onrender.com';
+const GAME_URL = 'https://countryballs-fallout-y8ud.onrender.com';
 
 function createWindow() {
   const win = new BrowserWindow({
