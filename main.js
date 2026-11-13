@@ -2,13 +2,12 @@ const { app, BrowserWindow, shell, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// >>> BIR KERE DOLDUR: server.json dosyasinin internetteki adresi (herkese acik olmali) <<<
-// Ornek: https://raw.githubusercontent.com/KULLANICIADI/REPOADI/main/server.json
+// server.json adresi (GitHub raw + jsDelivr yedek)
 const CONFIG_URLS = [
-  'https://raw.githubusercontent.com/tmapper/countryballs-config/main/server.json'
+  'https://raw.githubusercontent.com/tmapper/countryballs-config/main/server.json',
+  'https://cdn.jsdelivr.net/gh/tmapper/countryballs-config@main/server.json'
 ];
-// server.json okunamazsa ve daha once hic adres kaydedilmediyse kullanilacak yedek adres
-const DEFAULT_SERVERS = ['https://countryballs-fallout-y8ud.onrender.com'];
+const DEFAULT_SERVERS = ['https://countryballs-fallout-cv96.onrender.com'];
 
 let win = null;
 let starting = false;
@@ -25,11 +24,11 @@ async function fetchTimeout(url, ms) {
   finally { clearTimeout(t); }
 }
 
-async function getList() {
+async function getList(forceRemote) {
   for (const u of CONFIG_URLS) {
-    if (u.includes('KULLANICIADI')) continue; // henuz doldurulmamis
+    if (u.includes('KULLANICIADI')) continue;
     try {
-      const res = await fetchTimeout(u + (u.includes('?') ? '&' : '?') + 't=' + Date.now(), 5000);
+      const res = await fetchTimeout(u + (u.includes('?') ? '&' : '?') + 't=' + Date.now(), 8000);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const j = await res.json();
       const list = clean(j.servers || j.server);
@@ -37,27 +36,32 @@ async function getList() {
         try { fs.writeFileSync(cacheFile(), JSON.stringify(list)); } catch (e) {}
         return list;
       }
-    } catch (e) { /* siradaki adresi dene */ }
+    } catch (e) { /* siradaki */ }
   }
-  try {
-    const c = clean(JSON.parse(fs.readFileSync(cacheFile(), 'utf8')));
-    if (c.length) return c;
-  } catch (e) {}
+  if (!forceRemote) {
+    try {
+      const c = clean(JSON.parse(fs.readFileSync(cacheFile(), 'utf8')));
+      if (c.length) return c;
+    } catch (e) {}
+  }
   return clean(DEFAULT_SERVERS);
 }
 
-// Sunucu uyuyorsa uyanmasini bekler (Render ucretsiz plan). Cevap gelirse true.
 async function alive(url) {
-  try { await fetchTimeout(url + '/?t=' + Date.now(), 70000); return true; }
-  catch (e) { return false; }
+  try {
+    const res = await fetchTimeout(url + '/?t=' + Date.now(), 70000);
+    return res && res.status >= 200 && res.status < 500;
+  } catch (e) { return false; }
 }
 
 async function start() {
   if (starting) return;
   starting = true;
+  let attempts = 0;
   try {
     while (win && !win.isDestroyed()) {
-      const list = await getList();
+      attempts++;
+      const list = await getList(attempts > 1 && attempts % 3 === 0);
       for (const s of list) {
         if (!win || win.isDestroyed()) return;
         if (await alive(s)) {
@@ -66,7 +70,8 @@ async function start() {
           return;
         }
       }
-      await sleep(5000);
+      try { fs.unlinkSync(cacheFile()); } catch (e) {}
+      await sleep(4000);
     }
   } finally { starting = false; }
 }
@@ -84,14 +89,12 @@ function createWindow() {
   win.loadFile(path.join(__dirname, 'loading.html'));
   setTimeout(start, 500);
 
-  // Oyun sayfasi acilamazsa (internet yok / sunucu degisti) bekleme ekranina don ve bastan dene
   win.webContents.on('did-fail-load', (e, code, desc, url, isMainFrame) => {
     if (!isMainFrame || code === -3 || url.startsWith('file:')) return;
     win.loadFile(path.join(__dirname, 'loading.html'));
-    setTimeout(start, 5000);
+    setTimeout(start, 3000);
   });
 
-  // Dis linkleri tarayicida ac
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
